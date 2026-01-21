@@ -14,9 +14,9 @@ func TestClient(t *testing.T) {
 		t.Fatalf("tts failed: %v, resp=%+v", err, resp)
 	}
 
-	if err := os.WriteFile("test.mp3", b, 0o644); err != nil {
+	if err := os.WriteFile("test.wav", b, 0o644); err != nil {
 		t.Fatalf("write file: %v", err)
 	}
 
-	t.Log("saved: test.mp3")
+	t.Log("saved: test.wav")
 }

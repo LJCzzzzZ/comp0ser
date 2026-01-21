@@ -50,21 +50,25 @@ func (c *Composer) Work(ctx context.Context) error {
 	slog.Info("Read Input file successful", slog.Any("file_len", len(content)))
 
 	// 1) LLM -> script
-	narrations, err := client.GenScript(ctx, c.cfg.TextModel, string(content), llm.ScriptSystemPrompt)
+	narrations, err := client.GenScript(ctx, c.cfg.TextModel, string(content), llm.UranusSystemPrompt)
 	if err != nil {
 		return err
 	}
 	slog.Info("gen script ok")
-
+	fmt.Println(len(narrations))
 	// TODO: Upgrade NewDefaultClient() to http new verison
-	ttsCli := llm.NewDefaultClient()
+	ttsCli := llm.NewClient("8a6f5c77-20da-4228-a409-a01f467829c2")
 
 	wavPaths := make([]string, 0, len(narrations))
 	for i, narration := range narrations {
 		outPath := filepath.Join(paths.OutDir, fmt.Sprintf("narration_%d.wav", i))
-		fmt.Println(narration)
-		if err := ttsCli.SynthesizeToFile(context.Background(), narration, outPath); err != nil {
+
+		b, _, err := ttsCli.Synthesize(context.Background(), "volcano_icl", "comp0ser", "S_L7R26kdR1", narration)
+		if err != nil {
 			return err
+		}
+		if err := os.WriteFile(outPath, b, 0o644); err != nil {
+			return fmt.Errorf("write wav file: %w", err)
 		}
 
 		wavPaths = append(wavPaths, outPath)

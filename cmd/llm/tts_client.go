@@ -96,8 +96,9 @@ func (c *Client) Synthesize(ctx context.Context, cluster, uid, voiceType, text s
 		},
 		Audio: AudioConfig{
 			VoiceType:  voiceType,
-			Encoding:   "mp3",
+			Encoding:   "wav",
 			SpeedRatio: 0.9,
+			Rate:       24000,
 		},
 		Request: ReqConfig{
 			ReqID:     uuid.NewString(), // 每次唯一 :contentReference[oaicite:5]{index=5}

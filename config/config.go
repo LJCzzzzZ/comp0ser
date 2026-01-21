@@ -49,7 +49,7 @@ func (c *Config) Load() error {
 	flag.StringVar(&c.BGM, "bgm", "", "bgm path (required)")
 	flag.StringVar(&c.Img, "img", "", "image path (required)")
 	flag.Float64Var(&c.Volume, "volume", 0.18, "bgm volume")
-	flag.DurationVar(&c.Timeout, "timeout", 2*time.Minute, "ffmpeg timeout")
+	flag.DurationVar(&c.Timeout, "timeout", 30*time.Minute, "ffmpeg timeout")
 	flag.StringVar(&c.TextModel, "text", "gemini-3-flash-preview", "llm model")
 	flag.StringVar(&c.TTSModel, "tts", "gemini-2.5-pro-preview-tts", "tts model")
 	flag.StringVar(&c.LogFile, "log", "run.log", "log file path")

@@ -46,7 +46,7 @@ func (g *GeminiClient) GenScript(ctx context.Context, model, content, prompt str
 		SystemInstruction: &genai.Content{
 			Parts: []*genai.Part{
 				{
-					Text: ScriptSystemPrompt,
+					Text: prompt,
 				},
 			},
 		},
