@@ -2,186 +2,125 @@ package main
 
 import (
 	"context"
-	"encoding/binary"
 	"errors"
-	"flag"
-	"fmt"
-	"io"
-	"log"
 	"log/slog"
+	"net/http"
 	"os"
-	"path/filepath"
+	"os/signal"
+	"syscall"
 
 	"comp0ser/config"
+	"comp0ser/core/provider"
+	"comp0ser/filestore"
+	"comp0ser/internal/api"
+	"comp0ser/internal/logging"
+	"comp0ser/prompts"
+	"comp0ser/worker"
 
+	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
 
 func main() {
-	if err := run(); err != nil {
+	if err := execute(os.Args[1:]); err != nil {
 		slog.Error("program exit with error",
 			slog.Any("err", err),
-			slog.String("err_chain", errChain(err)),
 		)
 		os.Exit(1)
 	}
 }
 
-func run() error {
-	conf := loadConf()
+func execute(args []string) error {
+	loadEnv()
 
-	cleanup := initLogger(conf)
-	defer cleanup()
-
-	if err := loadEnv(); err != nil {
-		return err
-	}
-
-	composer, err := NewComposer(conf)
+	conf, err := config.Load(args)
 	if err != nil {
+		if errors.Is(err, config.ErrHelp) {
+			return nil
+		}
 		return err
 	}
-	if err := composer.Work(context.Background()); err != nil {
-		return err
-	}
-	return nil
-}
 
-func loadConf() *config.Config {
-	var conf config.Config
-	if err := conf.Load(); err != nil {
-		if err == flag.ErrHelp {
-			os.Exit(0)
-		}
-		log.Fatalln("load config failed ", err)
-	}
-	return &conf
-}
-
-func initLogger(conf *config.Config) func() {
-	level := slog.LevelInfo
-	if conf.Debug {
-		level = slog.LevelDebug
-	}
-
-	var w io.Writer = os.Stdout
-	if conf.Silent {
-		w = io.Discard
-	}
-
-	var file *os.File
-	if conf.LogFile != "" {
-		_ = os.MkdirAll(filepath.Dir(conf.LogFile), 0o755)
-
-		f, err := os.OpenFile(conf.LogFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
-		if err == nil {
-			file = f
-
-			if conf.Silent {
-				w = file
-			} else {
-				w = io.MultiWriter(os.Stdout, file)
-			}
-		} else {
-			fmt.Fprintf(os.Stderr, "open log file failed: %v (fallback to stdout)\n", err)
-		}
-	}
-
-	handler := slog.NewTextHandler(w, &slog.HandlerOptions{
-		Level:     level,
-		AddSource: conf.Debug,
-		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
-			if a.Key == slog.TimeKey {
-				t := a.Value.Time()
-				a.Value = slog.StringValue(t.Format("2006-01-02 15:04:05"))
-			}
-			return a
-		},
+	// init slog
+	cleanupFn := logging.Init(logging.Config{
+		Level:   conf.LogLevel,
+		Format:  conf.LogFormat,
+		LogFile: conf.LogFile,
+		Silent:  conf.Silent,
+		Debug:   conf.Debug,
 	})
 
-	slog.SetDefault(slog.New(handler))
+	defer cleanupFn()
 
-	return func() {
-		if file != nil {
-			_ = file.Close()
-		}
-	}
-}
-
-func writeWav(filename string, pcm []byte, channels uint16, sampleRate uint32, bitsPerSample uint16) error {
-	// WAV/RIFF header sizes
-	blockAlign := channels * (bitsPerSample / 8)
-	byteRate := sampleRate * uint32(blockAlign)
-	dataSize := uint32(len(pcm))
-	riffSize := 36 + dataSize // 4 + (8 + SubChunk1) + (8 + SubChunk2) = 36 + data
-
-	f, err := os.Create(filename)
+	r, err := prompts.NewRenderer()
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 
-	// RIFF header
-	if _, err := f.Write([]byte("RIFF")); err != nil {
-		return err
-	}
-	if err := binary.Write(f, binary.LittleEndian, riffSize); err != nil {
-		return err
-	}
-	if _, err := f.Write([]byte("WAVE")); err != nil {
+	llmClient, err := provider.NewGeminiClient(context.Background(), "gemini-3-flash-preview")
+	if err != nil {
 		return err
 	}
 
-	// fmt chunk
-	if _, err := f.Write([]byte("fmt ")); err != nil {
-		return err
-	}
-	if err := binary.Write(f, binary.LittleEndian, uint32(16)); err != nil { // PCM fmt chunk size
-		return err
-	}
-	if err := binary.Write(f, binary.LittleEndian, uint16(1)); err != nil { // AudioFormat 1 = PCM
-		return err
-	}
-	if err := binary.Write(f, binary.LittleEndian, channels); err != nil {
-		return err
-	}
-	if err := binary.Write(f, binary.LittleEndian, sampleRate); err != nil {
-		return err
-	}
-	if err := binary.Write(f, binary.LittleEndian, byteRate); err != nil {
-		return err
-	}
-	if err := binary.Write(f, binary.LittleEndian, blockAlign); err != nil {
-		return err
-	}
-	if err := binary.Write(f, binary.LittleEndian, bitsPerSample); err != nil {
-		return err
-	}
+	ttsClient := provider.NewTTSClient(provider.TTSConfig{
+		APIKey:    os.Getenv("VOLC_API_KEY"),
+		Cluster:   "volcano_icl",
+		UID:       "comp0ser",
+		VoiceType: "S_L7R26kdR1",
+	})
 
-	// data chunk
-	if _, err := f.Write([]byte("data")); err != nil {
-		return err
-	}
-	if err := binary.Write(f, binary.LittleEndian, dataSize); err != nil {
-		return err
-	}
-	if _, err := f.Write(pcm); err != nil {
-		return err
-	}
+	fs := filestore.NewFileLocalStore("/mnt/media/data")
+
+	worker := newWorker(conf, r, llmClient, ttsClient, fs)
+	worker.Start()
+	defer worker.Shutdown()
+
+	server := newHTTPServer(conf.HTTPAddr, worker)
+	go func() {
+		slog.Info("http server started", "addr", conf.HTTPAddr)
+		if err := server.ListenAndServe(); err != nil {
+			slog.Error("http server error", "err", err)
+		}
+	}()
+
+	// exit graceful
+	waitSignal()
 
 	return nil
 }
 
-func loadEnv() error {
+func loadEnv() {
 	godotenv.Load()
-	return nil
 }
 
-func errChain(err error) string {
-	out := ""
-	for i := 0; err != nil && i < 12; i++ {
-		out += fmt.Sprintf("[%d] %T: %v\n", i, err, err)
-		err = errors.Unwrap(err)
+func newWorker(conf *config.Config, r *prompts.Renderer, llm *provider.GeminiClient, tts *provider.TTSClient, fs filestore.FileStore) worker.Worker {
+	w := worker.New(worker.Config{
+		LLM:      llm,
+		TTS:      tts,
+		Renderer: r,
+		FS:       fs,
+	})
+	return w
+}
+
+func newHTTPServer(addr string, worker worker.Worker) *http.Server {
+	r := gin.New()
+	r.Use(gin.Logger(), gin.Recovery())
+
+	r.GET("/ping", func(c *gin.Context) {
+		c.JSON(200, gin.H{"message": "pong"})
+	})
+
+	cmdHandle := api.NewCmdHandler(worker)
+	cmdHandle.Register(r)
+	return &http.Server{
+		Addr:    addr,
+		Handler: r,
 	}
-	return out
+}
+
+func waitSignal() {
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
+	<-ch
 }

@@ -1,5 +1,4 @@
-// Package llm provide llm client for composer
-package llm
+package provider
 
 import (
 	"context"
@@ -15,9 +14,10 @@ import (
 
 type GeminiClient struct {
 	client *genai.Client
+	Model  string
 }
 
-func NewGeminiClient(ctx context.Context) (*GeminiClient, error) {
+func NewGeminiClient(ctx context.Context, model string) (*GeminiClient, error) {
 	apiKey := os.Getenv("GEMINI_API_KEY")
 	if apiKey == "" {
 		return nil, fmt.Errorf("GEMINI_API_KEY is empty")
@@ -30,7 +30,7 @@ func NewGeminiClient(ctx context.Context) (*GeminiClient, error) {
 		return nil, fmt.Errorf("genai.NewClient failed: %w", err)
 	}
 
-	return &GeminiClient{client: client}, nil
+	return &GeminiClient{client: client, Model: model}, nil
 }
 
 func (g *GeminiClient) GenScript(ctx context.Context, model, content, prompt string) ([]string, error) {

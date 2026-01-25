@@ -1,0 +1,119 @@
+time="2026-01-24 16:58:03" level=INFO msg="worker starting" maxTasks=5
+time="2026-01-24 16:58:56" level=INFO msg="worker starting" maxTasks=5
+time="2026-01-24 17:00:22" level=INFO msg="worker starting" maxTasks=5
+time="2026-01-24 17:00:22" level=INFO msg="worker shutting down"
+time="2026-01-24 17:00:22" level=INFO msg="worker stopped"
+time="2026-01-24 17:08:47" level=INFO msg="worker starting" maxTasks=5
+time="2026-01-24 17:08:49" level=INFO msg="worker shutting down"
+time="2026-01-24 17:08:49" level=INFO msg="worker stopped"
+time="2026-01-24 17:20:43" level=INFO msg="worker starting" maxTasks=5
+time="2026-01-24 17:20:43" level=INFO msg="http server started" addr=:8080
+time="2026-01-24 17:20:43" level=ERROR msg="http server error" err="listen tcp :8080: bind: address already in use"
+time="2026-01-24 17:21:00" level=INFO msg="worker shutting down"
+time="2026-01-24 17:21:00" level=INFO msg="worker stopped"
+time="2026-01-24 17:21:22" level=INFO msg="worker starting" maxTasks=5
+time="2026-01-24 17:21:22" level=INFO msg="http server started" addr=:8088
+time="2026-01-24 19:26:29" level=INFO msg="worker shutting down"
+time="2026-01-24 19:26:29" level=INFO msg="worker stopped"
+time="2026-01-24 19:39:32" level=INFO msg="worker starting" maxTasks=5
+time="2026-01-24 19:39:32" level=INFO msg="http server started" addr=:8088
+time="2026-01-24 21:59:21" level=INFO msg="worker shutting down"
+time="2026-01-24 21:59:21" level=INFO msg="worker stopped"
+time="2026-01-25 16:28:38" level=INFO msg="worker starting" maxTasks=5
+time="2026-01-25 16:28:38" level=INFO msg="http server started" addr=:8088
+time="2026-01-25 16:28:57" level=INFO msg="request genmini llm to gen script" data_len=399
+time="2026-01-25 16:34:23" level=INFO msg="worker shutting down"
+time="2026-01-25 16:34:23" level=INFO msg="worker stopped"
+time="2026-01-25 16:34:28" level=INFO msg="worker starting" maxTasks=5
+time="2026-01-25 16:34:28" level=INFO msg="http server started" addr=:8088
+time="2026-01-25 16:34:35" level=INFO msg="request genmini llm to gen script" data_len=399
+time="2026-01-25 18:14:05" level=INFO msg="worker shutting down"
+time="2026-01-25 18:14:05" level=INFO msg="worker stopped"
+time="2026-01-25 18:18:40" level=INFO msg="worker starting" maxTasks=5
+time="2026-01-25 18:18:40" level=INFO msg="http server started" addr=:8088
+time="2026-01-25 18:18:45" level=INFO msg="request genmini llm to gen script" data_len=399
+time="2026-01-25 18:19:47" level=INFO msg="worker shutting down"
+time="2026-01-25 18:19:47" level=INFO msg="worker stopped"
+time="2026-01-25 18:19:55" level=INFO msg="worker starting" maxTasks=5
+time="2026-01-25 18:19:55" level=INFO msg="http server started" addr=:8088
+time="2026-01-25 18:20:02" level=INFO msg="request genmini llm to gen script" data_len=399
+time="2026-01-25 18:20:37" level=INFO msg="worker shutting down"
+time="2026-01-25 18:20:37" level=INFO msg="worker stopped"
+time="2026-01-25 18:20:43" level=INFO msg="worker starting" maxTasks=5
+time="2026-01-25 18:20:43" level=INFO msg="http server started" addr=:8088
+time="2026-01-25 18:20:48" level=INFO msg="request genmini llm to gen script" data_len=399
+time="2026-01-25 18:27:08" level=INFO msg="worker shutting down"
+time="2026-01-25 18:27:08" level=INFO msg="worker stopped"
+time="2026-01-25 18:27:12" level=INFO msg="worker starting" maxTasks=5
+time="2026-01-25 18:27:12" level=INFO msg="http server started" addr=:8088
+time="2026-01-25 18:27:27" level=INFO msg="request genmini llm to gen script" data_len=399
+time="2026-01-25 18:27:38" level=ERROR msg="run task failed" task_id=task_1769336847078128244 task_type=script.gen err="mkdir store dir: mkdir /store: permission denied"
+time="2026-01-25 18:33:09" level=INFO msg="worker shutting down"
+time="2026-01-25 18:33:09" level=INFO msg="worker stopped"
+time="2026-01-25 18:33:15" level=INFO msg="worker starting" maxTasks=5
+time="2026-01-25 18:33:15" level=INFO msg="http server started" addr=:8088
+time="2026-01-25 18:33:18" level=INFO msg="request genmini llm to gen script" data_len=399
+time="2026-01-25 18:35:13" level=INFO msg="worker shutting down"
+time="2026-01-25 18:35:13" level=INFO msg="worker stopped"
+time="2026-01-25 18:39:47" level=INFO msg="worker starting" maxTasks=5
+time="2026-01-25 18:39:47" level=INFO msg="http server started" addr=:8088
+time="2026-01-25 18:40:47" level=INFO msg="worker shutting down"
+time="2026-01-25 18:40:47" level=INFO msg="worker stopped"
+time="2026-01-25 18:40:50" level=INFO msg="worker starting" maxTasks=5
+time="2026-01-25 18:40:50" level=INFO msg="http server started" addr=:8088
+time="2026-01-25 18:41:00" level=INFO msg="request genmini llm to gen script" data_len=399
+time="2026-01-25 18:41:13" level=ERROR msg="run task failed" task_id=task_1769337660713419831 task_type=script.gen err="open dst file \"store/X6Z7ZXJI.txt\": %!w(<nil>)"
+time="2026-01-25 18:42:09" level=INFO msg="worker shutting down"
+time="2026-01-25 18:42:09" level=INFO msg="worker stopped"
+time="2026-01-25 18:45:15" level=INFO msg="worker starting" maxTasks=5
+time="2026-01-25 18:45:15" level=INFO msg="http server started" addr=:8088
+time="2026-01-25 18:45:18" level=INFO msg="request genmini llm to gen script" data_len=399
+time="2026-01-25 18:45:29" level=ERROR msg="run task failed" task_id=task_1769337918852869414 task_type=script.gen err="open dst file \"store/WCQJJX6J.txt\": %!w(<nil>)"
+time="2026-01-25 18:48:26" level=INFO msg="worker shutting down"
+time="2026-01-25 18:48:26" level=INFO msg="worker stopped"
+time="2026-01-25 18:48:30" level=INFO msg="worker starting" maxTasks=5
+time="2026-01-25 18:48:30" level=INFO msg="http server started" addr=:8088
+time="2026-01-25 18:48:39" level=INFO msg="request genmini llm to gen script" data_len=399
+time="2026-01-25 19:07:19" level=INFO msg="worker shutting down"
+time="2026-01-25 19:07:19" level=INFO msg="worker stopped"
+time="2026-01-25 19:07:23" level=INFO msg="worker starting" maxTasks=5
+time="2026-01-25 19:07:23" level=INFO msg="http server started" addr=:8088
+time="2026-01-25 19:07:28" level=INFO msg="request genmini llm to gen script" data_len=399
+time="2026-01-25 19:39:19" level=INFO msg="request genmini llm to gen script" data_len=36812
+time="2026-01-25 19:59:55" level=INFO msg="worker shutting down"
+time="2026-01-25 19:59:55" level=INFO msg="worker stopped"
+time="2026-01-25 19:59:58" level=INFO msg="worker starting" maxTasks=5
+time="2026-01-25 19:59:58" level=INFO msg="http server started" addr=:8088
+time="2026-01-25 20:00:01" level=INFO msg="request genmini llm to gen script" data_len=36812
+time="2026-01-25 20:19:36" level=INFO msg="worker shutting down"
+time="2026-01-25 20:19:36" level=INFO msg="worker stopped"
+time="2026-01-25 20:19:41" level=INFO msg="worker starting" maxTasks=5
+time="2026-01-25 20:19:41" level=INFO msg="http server started" addr=:8088
+time="2026-01-25 20:22:22" level=INFO msg="worker shutting down"
+time="2026-01-25 20:22:22" level=INFO msg="worker stopped"
+time="2026-01-25 20:22:24" level=INFO msg="worker starting" maxTasks=5
+time="2026-01-25 20:22:24" level=INFO msg="http server started" addr=:8088
+time="2026-01-25 20:22:48" level=INFO msg="worker shutting down"
+time="2026-01-25 20:22:48" level=INFO msg="worker stopped"
+time="2026-01-25 20:22:49" level=INFO msg="worker starting" maxTasks=5
+time="2026-01-25 20:22:49" level=INFO msg="http server started" addr=:8088
+time="2026-01-25 22:03:12" level=INFO msg="worker shutting down"
+time="2026-01-25 22:03:12" level=INFO msg="worker stopped"
+time="2026-01-25 22:03:16" level=INFO msg="worker starting" maxTasks=5
+time="2026-01-25 22:03:16" level=INFO msg="http server started" addr=:8088
+time="2026-01-25 22:03:28" level=ERROR msg="run task failed" task_id=task_1769349808750966972 task_type=tts.all.gen err="unknown task type: tts.all.gen"
+time="2026-01-25 22:04:18" level=INFO msg="worker shutting down"
+time="2026-01-25 22:04:18" level=INFO msg="worker stopped"
+time="2026-01-25 22:04:19" level=INFO msg="worker starting" maxTasks=5
+time="2026-01-25 22:04:19" level=INFO msg="http server started" addr=:8088
+time="2026-01-25 22:15:50" level=INFO msg="worker shutting down"
+time="2026-01-25 22:15:50" level=INFO msg="worker stopped"
+time="2026-01-25 22:16:01" level=INFO msg="worker starting" maxTasks=5
+time="2026-01-25 22:16:01" level=INFO msg="http server started" addr=:8088
+time="2026-01-25 22:16:20" level=INFO msg="save wav ok" fildID=E4WRJT6I
+time="2026-01-25 22:16:34" level=INFO msg="save wav ok" fildID=7JPRJAFW
+time="2026-01-25 22:16:49" level=INFO msg="save wav ok" fildID=XS2FUDGF
+time="2026-01-25 22:17:01" level=INFO msg="save wav ok" fildID=LL6FFH5H
+time="2026-01-25 22:17:16" level=INFO msg="save wav ok" fildID=47ASFQFV
+time="2026-01-25 22:37:13" level=INFO msg="worker shutting down"
+time="2026-01-25 22:37:13" level=INFO msg="worker stopped"

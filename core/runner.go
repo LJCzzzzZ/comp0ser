@@ -1,4 +1,4 @@
-package main
+package core
 
 import (
 	"bytes"
@@ -55,7 +55,6 @@ func (r *Runner) Run(parent context.Context, cmd *Cmd) error {
 
 	err := command.Run()
 
-	// 如果是超时/取消，返回更清晰的错误信息
 	if ctx.Err() != nil {
 		return &RunError{
 			Command: command.String(),
