@@ -1,7 +1,6 @@
 package worker
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -12,7 +11,7 @@ import (
 )
 
 func (w *worker) handleScriptGen(task *Task) error {
-	var p GenScriptPlayLoad
+	var p GenScriptPayLoad
 	if err := json.Unmarshal(task.Payload, &p); err != nil {
 		return err
 	}
@@ -33,26 +32,29 @@ func (w *worker) handleScriptGen(task *Task) error {
 	if err != nil {
 		return err
 	}
-	nar := make([]Narration, 0, len(contents))
+
+	doc, err := w.fs.New(p.Subject)
+
+	slog.Info("local file store 'New' ok",
+		"doc", doc,
+	)
+	if err != nil {
+		return err
+	}
+
 	for i, content := range contents {
-		nar = append(nar, Narration{
-			ID:   i,
-			Text: content,
-		})
-	}
-
-	b, err := json.MarshalIndent(nar, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	id, err := w.fs.Add(fmt.Sprintf("%s.txt", p.Subject), bytes.NewReader(b))
-	if err != nil {
-		return err
+		id, err := w.fs.Append(p.Subject, fmt.Sprintf("%04d", i), content, nil)
+		if err != nil {
+			return err
+		}
+		slog.Info("append narration ok",
+			"idx", i,
+			"narID", id,
+		)
 	}
 
 	slog.Info("handle genScript ok",
-		"file_id", id,
+		"doc_name", doc,
 		"subject", p.Subject,
 		"segments", p.Segments,
 		"minChars", p.MinChars,

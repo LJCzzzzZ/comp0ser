@@ -1,51 +1,135 @@
 package filestore
 
 import (
+	"bufio"
 	"encoding/base32"
+	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"math/rand/v2"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 )
 
 type fileLocalStore struct {
-	dir  string            // directory to store file
-	name map[string]string // id -> original filename
-	mu   sync.RWMutex
+	dir string // directory to store file
+	mu  sync.RWMutex
 }
 
 func NewFileLocalStore(dir string) FileStore {
 	return &fileLocalStore{
-		dir:  filepath.Clean(dir),
-		name: make(map[string]string),
+		dir: filepath.Clean(dir),
 	}
 }
 
-func (s *fileLocalStore) Add(name string, r io.Reader) (string, error) {
-	if err := os.MkdirAll(s.dir, 0o755); err != nil {
-		return "", fmt.Errorf("mkdir store dir %q: %w", s.dir, err)
+func (s *fileLocalStore) New(name string) (string, error) {
+	tar := filepath.Join(s.dir, name)
+	if err := os.MkdirAll(filepath.Join(tar, "audio"), 0o755); err != nil {
+		return "", err
 	}
 
-	ext := filepath.Ext(name)
+	return tar, nil
+}
 
-	id, err := generateID()
+func (s *fileLocalStore) Add(name, id string, set map[string]any, unset []string) error {
+	tar := filepath.Join(s.dir, name)
+	file := filepath.Join(tar, "narration.txt")
+	fmt.Println(file)
+
+	in, err := os.OpenFile(file, os.O_CREATE|os.O_RDONLY, 0o644)
 	if err != nil {
-		return "", fmt.Errorf("generate id: %w", err)
+		return err
+	}
+	defer in.Close()
+
+	tmp, err := os.CreateTemp(tar, ".narration.tmp-*")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	defer func() {
+		_ = tmp.Close()
+		_ = os.Remove(tmpName)
+	}()
+
+	sc := bufio.NewScanner(in)
+	found := false
+
+	for sc.Scan() {
+		line := strings.TrimSpace(sc.Text())
+		if line == "" {
+			continue
+		}
+
+		var o map[string]any
+		if err := json.Unmarshal([]byte(line), &o); err != nil {
+			return fmt.Errorf("bad jsonl line: %w", err)
+		}
+
+		if o["id"] == id {
+			maps.Copy(o, set)
+			for _, k := range unset {
+				delete(o, k)
+			}
+			found = true
+		}
+
+		b, _ := json.Marshal(o)
+		if _, err := tmp.Write(append(b, '\n')); err != nil {
+			return err
+		}
+	}
+	if err := sc.Err(); err != nil {
+		return err
 	}
 
-	dst := filepath.Join(s.dir, id+ext)
+	if !found {
+		return fmt.Errorf("not found")
+	}
+
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+
+	return os.Rename(tmpName, file)
+}
+
+func (s *fileLocalStore) Append(name, id, text string, extra map[string]any) (string, error) {
+	tar := filepath.Join(s.dir, name)
+	o := map[string]any{
+		"id":       id,
+		"text":     text,
+		"audio_id": "",
+	}
+
+	maps.Copy(o, extra)
+	nar := filepath.Join(tar, "narration.txt")
+	file, err := os.OpenFile(nar, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	if err != nil {
+		return "", err
+	}
+
+	b, _ := json.Marshal(o)
+	_, err = file.Write(append(b, '\n'))
+	return id, err
+}
+
+func (s *fileLocalStore) Save(name, filename, ext string, r io.Reader) (string, string, error) {
+	tar := filepath.Join(s.dir, name)
+	if ext == "" || !strings.HasPrefix(ext, ".") {
+		return "", "", fmt.Errorf("bad ext: %q", ext)
+	}
+	fmt.Println(filename)
+
+	dst := filepath.Join(tar, "audio", filename+ext)
+
 	f, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0o644)
 	if err != nil {
-		return "", fmt.Errorf("open dst file %q: %w", dst, err)
+		return "", "", err
 	}
-
-	if f == nil {
-		return "", fmt.Errorf("cannot allocate unique id after retries")
-	}
-
-	// 如果写入失败，删除半截文件
 	ok := false
 	defer func() {
 		_ = f.Close()
@@ -55,54 +139,43 @@ func (s *fileLocalStore) Add(name string, r io.Reader) (string, error) {
 	}()
 
 	if _, err := io.Copy(f, r); err != nil {
-		return "", fmt.Errorf("write dst file: %w", err)
+		return "", "", err
 	}
-
 	ok = true
-
-	s.mu.Lock()
-	s.name[id] = name
-	s.mu.Unlock()
-
-	return id, nil
+	return filename, dst, nil
 }
 
-func (s *fileLocalStore) Get(id string) (string, *os.File) {
-	s.mu.RLock()
-	name := s.name[id]
-	s.mu.RUnlock()
-
-	// 1) try by ext from name
-	if name != "" {
-		ext := filepath.Ext(name)
-		p := filepath.Join(s.dir, id+ext)
-		if f, err := os.Open(p); err == nil {
-			return name, f
-		}
+func (s *fileLocalStore) List(name string) ([]map[string]any, error) {
+	nar := filepath.Join(s.dir, name, "narration.txt")
+	fmt.Println(nar)
+	f, err := os.OpenFile(nar, os.O_CREATE|os.O_RDONLY, 0o644)
+	if err != nil {
+		return nil, err
 	}
+	defer f.Close()
 
-	// 2) fallback: try without ext
-	p0 := filepath.Join(s.dir, id)
-	if f, err := os.Open(p0); err == nil {
-		if name == "" {
-			name = filepath.Base(p0)
+	sc := bufio.NewScanner(f)
+
+	var nars []map[string]any
+	for sc.Scan() {
+		line := strings.TrimSpace(sc.Text())
+		if line == "" {
+			continue
 		}
-		return name, f
-	}
-
-	// 3) fallback: glob search (useful after restart when map is empty)
-	matches, _ := filepath.Glob(filepath.Join(s.dir, id+".*"))
-	if len(matches) > 0 {
-		if f, err := os.Open(matches[0]); err == nil {
-			if name == "" {
-				name = filepath.Base(matches[0])
-			}
-			return name, f
+		var o map[string]any
+		if err := json.Unmarshal([]byte(line), &o); err != nil {
+			return nil, fmt.Errorf("bad jsonl line: %w", err)
 		}
+		nars = append(nars, o)
 	}
+	if err := sc.Err(); err != nil {
+		return nil, err
+	}
+	return nars, nil
+}
 
-	// not found
-	return name, nil
+func (s *fileLocalStore) Dir() string {
+	return s.dir
 }
 
 func generateID() (string, error) {

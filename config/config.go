@@ -2,85 +2,63 @@
 package config
 
 import (
-	"errors"
-	"flag"
+	"fmt"
 	"time"
+
+	"github.com/caarlos0/env/v11"
 )
 
-var ErrHelp = errors.New("help requested")
-
 type Config struct {
-	Input string
-	BGM   string
-	Img   string
+	Addr string `env:"ADDR" envDefault:":8088"`
 
-	Timeout time.Duration
+	// Log Config
+	LogFile string `env:"LOG_FILE" envDefault:"run.log"`
+	Level   string `env:"LEVEL" envDefault:"info"`
+	Format  string `env:"FORMAT" envDefault:"json"`
+	Silent  bool   `env:"SILENT" envDefault:"false"`
+	Debug   bool   `env:"DEBUG" envDefault:"false"`
 
-	Voice  string
-	Volume float64
+	// Gemini Config
+	GeminiAPIKey string `env:"GEMINI_API_KEY" envRequired:"true"`
+	TextModel    string `env:"TEXT_MODEL" envDefault:"gemini-3-flash-preview"`
 
-	TextModel string
-	TTSModel  string
+	// Volc Config
+	VolcAPIKey string        `env:"VOLC_API_KEY" envRequired:"true"`
+	CLUSTER    string        `env:"CLUSTER" envDefault:"volcano_icl"`
+	UID        string        `env:"UID" envDefault:"comp0ser"`
+	VoiceType  string        `env:"VOICE_TYPE" envRequired:"true"`
+	Timeout    time.Duration `env:"TIMEOUT" envDefault:"30m"`
 
-	LogFile   string
-	LogLevel  string
-	LogFormat string
-	Silent    bool
-	Debug     bool
+	// Store Config
+	LocalFileStoreDir string `env:"LOCAL_FILE_STORE_DIR" envDefault:"/mnt/media/data"`
 
-	HTTPAddr string
+	// Audio Config
+	Volume float64 `env:"VOLUME" envDefault:"0.18"`
+}
 
-	Target string
+func Load() (*Config, error) {
+	var cfg Config
+	if err := env.Parse(&cfg); err != nil {
+		return nil, err
+	}
+
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+	return &cfg, nil
 }
 
 func (c *Config) Validate() error {
-	//if c.Voice == "" {
-	//return fmt.Errorf("voice is required, use -voice <name>")
-	//}
-	//if c.BGM == "" {
-	//return fmt.Errorf("bgm is required, use -bgm <path>")
-	//}
-	//if c.Img == "" {
-	//return fmt.Errorf("img is required, use -img <path>")
-	//}
-	//if c.Input == "" {
-	//return fmt.Errorf("input is required, use -in <path>")
-	//}
+	if c.Addr == "" {
+		return fmt.Errorf("SERVER_ADDR is required")
+	}
+
+	if c.Level == "" {
+		return fmt.Errorf("LOG LEVEL is required")
+	}
+
+	if c.TextModel == "" {
+		return fmt.Errorf("TEXT MODEL is required")
+	}
 	return nil
 }
-
-func Load(args []string) (*Config, error) {
-	fs := flag.NewFlagSet("comp0ser", flag.ContinueOnError)
-	var c Config
-	fs.StringVar(&c.HTTPAddr, "addr", ":8088", "http addr")
-	fs.StringVar(&c.Input, "in", "input.txt", "input file")
-	fs.StringVar(&c.Voice, "voice", "", "voice name (required)")
-	fs.StringVar(&c.BGM, "bgm", "", "bgm path (required)")
-	fs.StringVar(&c.Img, "img", "", "image path (required)")
-	fs.Float64Var(&c.Volume, "volume", 0.18, "bgm volume")
-	fs.DurationVar(&c.Timeout, "timeout", 30*time.Minute, "ffmpeg timeout")
-	fs.StringVar(&c.TextModel, "text", "gemini-3-flash-preview", "llm model")
-	fs.StringVar(&c.TTSModel, "tts", "gemini-2.5-pro-preview-tts", "tts model")
-	fs.StringVar(&c.LogFile, "log", "run.log", "log file path")
-	fs.StringVar(&c.Target, "target", "", "output dir (default = voice)")
-	fs.BoolVar(&c.Silent, "silent", false, "do not print logs")
-	fs.BoolVar(&c.Debug, "debug", false, "enable debug logs")
-
-	if err := fs.Parse(args); err != nil {
-		if errors.Is(err, flag.ErrHelp) {
-			return nil, ErrHelp
-		}
-		return nil, err
-	}
-
-	if c.Target == "" {
-		c.Target = c.Voice
-	}
-
-	if err := c.Validate(); err != nil {
-		return nil, err
-	}
-
-	return &c, nil
-}
-

@@ -34,3 +34,6 @@ go.work.sum
 curl/
 store/
 asset/
+
+# log
+*.log

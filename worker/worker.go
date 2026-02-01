@@ -8,15 +8,23 @@ import (
 	"sync"
 	"time"
 
+	"comp0ser/core"
 	"comp0ser/core/provider"
 	"comp0ser/filestore"
 	"comp0ser/prompts"
 )
 
-const maxTasks = 5
+const (
+	defaultWorkerCount   = 5
+	defaultQueueCapacity = defaultWorkerCount * 8
+)
 
 type Config struct {
-	// file store
+	WorkerCount   int
+	QueueCapacity int
+
+	FF     *core.FFmpeg
+	Runner *core.Runner
 
 	FS       filestore.FileStore
 	LLM      *provider.GeminiClient
@@ -33,24 +41,43 @@ type Worker interface {
 
 type worker struct {
 	fs       filestore.FileStore
+	ff       *core.FFmpeg
 	llm      *provider.GeminiClient
 	tts      *provider.TTSClient
 	renderer *prompts.Renderer
+	runner   *core.Runner
+
+	workerCount   int
+	queueCapacity int
 
 	wg        sync.WaitGroup
 	startOnce sync.Once
 	stopOnce  sync.Once
 
+	mu     sync.RWMutex
+	closed bool
+
 	queue chan *Task
-	done  chan struct{}
 }
 
 func New(conf Config) Worker {
+	wc := conf.WorkerCount
+	if wc <= 0 {
+		wc = defaultWorkerCount
+	}
+	qc := conf.QueueCapacity
+	if qc <= 0 {
+		qc = defaultQueueCapacity
+	}
 	return &worker{
-		fs:       conf.FS,
-		llm:      conf.LLM,
-		tts:      conf.TTS,
-		renderer: conf.Renderer,
+		fs:            conf.FS,
+		runner:        conf.Runner,
+		ff:            conf.FF,
+		llm:           conf.LLM,
+		tts:           conf.TTS,
+		renderer:      conf.Renderer,
+		workerCount:   wc,
+		queueCapacity: qc,
 	}
 }
 
@@ -58,26 +85,39 @@ func (w *worker) Start() {
 	w.startOnce.Do(func() {
 		slog.Info(
 			"worker starting",
-			"maxTasks", maxTasks,
+			"workers", w.workerCount,
+			"queueCapacity", w.queueCapacity,
 		)
-		w.queue = make(chan *Task, maxTasks)
-		w.done = make(chan struct{})
+		w.queue = make(chan *Task, w.queueCapacity)
 
-		w.wg.Go(func() { w.loop() })
+		for i := 0; i < w.workerCount; i++ {
+			w.wg.Go(func() {
+				w.loop()
+			})
+		}
 	})
 }
 
 func (w *worker) Shutdown() {
 	w.stopOnce.Do(func() {
 		slog.Info("worker shutting down")
-		close(w.done)
+
+		w.mu.Lock()
+		w.closed = true
+		if w.queue != nil {
+			close(w.queue)
+		}
+		w.mu.Unlock()
+
 		w.wg.Wait()
 		slog.Info("worker stopped")
 	})
 }
 
-func (w *worker) Submit(ctx context.Context, typ TaskType, playload any) (string, error) {
-	b, err := json.Marshal(playload)
+func (w *worker) Submit(ctx context.Context, typ TaskType, payload any) (string, error) {
+	w.Start()
+
+	b, err := json.Marshal(payload)
 	if err != nil {
 		return "", err
 	}
@@ -88,6 +128,8 @@ func (w *worker) Submit(ctx context.Context, typ TaskType, playload any) (string
 		Type:    typ,
 		Payload: b,
 	}
+	w.mu.RLock()
+	defer w.mu.RUnlock()
 
 	select {
 	case w.queue <- task:
@@ -98,26 +140,29 @@ func (w *worker) Submit(ctx context.Context, typ TaskType, playload any) (string
 }
 
 func (w *worker) loop() {
-	for {
-		select {
-		case task, ok := <-w.queue:
-			if !ok {
-				return
-			}
-
-			if err := w.runOne(task); err != nil {
-				slog.Error("run task failed",
-					"task_id", task.ID,
-					"task_type", task.Type,
-					"err", err,
-				)
-				continue
-			}
-
-		case <-w.done:
-			return
+	for task := range w.queue {
+		if err := w.runOneSafe(task); err != nil {
+			slog.Error("run task failed",
+				"task_id", task.ID,
+				"task_type", task.Type,
+				"err", err,
+			)
 		}
 	}
+}
+
+func (w *worker) runOneSafe(task *Task) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("panic: %v", r)
+			slog.Error("task panicked",
+				"task_id", task.ID,
+				"task_type", task.Type,
+				"err", err,
+			)
+		}
+	}()
+	return w.runOne(task)
 }
 
 func (w *worker) runOne(task *Task) error {
@@ -126,6 +171,18 @@ func (w *worker) runOne(task *Task) error {
 		return w.handleScriptGen(task)
 	case GenTTSAll:
 		return w.handleTTSAll(task)
+	case GenTTSSingle:
+		return w.handleTTSSingle(task)
+	case Mixdown:
+		return w.handleMixdown(task)
+	case Concat:
+		return w.handleConcat(task)
+	case Render:
+		return w.handleRender(task)
+	case Merge:
+		return w.handleMerge(task)
+	case Brun:
+		return w.handleBrunSubtitle(task)
 	default:
 		return fmt.Errorf("unknown task type: %v", task.Type)
 	}
